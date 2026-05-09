@@ -24,7 +24,7 @@ SYSTEM_PROMPT = (
     "Use these names where they fit (you may add others if truly needed): "
     "Frontend, CLI, Backend, API, Database, Models, Auth, Config, Utilities, Tests, External, Build. "
     "Important: use 'Frontend' for all UI/web/client-side code; use 'CLI' for command-line entry points. "
-    "Keep names SHORT — 1-2 words max, ≤ 12 chars, Title Case, no emoji. Aim for 4–6 clusters max — aggressively merge related files. "
+    "Keep names SHORT — 1-2 words max, ≤ 12 chars, Title Case, no emoji. Aim for 4–6 clusters max — aggressively merge related files. Never create a cluster for a single file. "
     'Output ONLY a JSON object mapping each input file path to a cluster name. No prose, no markdown.'
 )
 
@@ -101,8 +101,23 @@ def _canonicalize(name: str) -> str:
 
 
 def _cap_clusters(mapping: dict[str, str], max_clusters: int = MAX_CLUSTERS) -> dict[str, str]:
-    """If too many distinct clusters, merge smallest ones into 'Utilities'."""
+    """Merge singleton clusters into larger ones, then cap total cluster count."""
     counts = Counter(mapping.values())
+
+    # Merge clusters with only one file into a better-fitting larger cluster
+    large = {name for name, cnt in counts.items() if cnt >= 2}
+    if large:
+        result: dict[str, str] = {}
+        for path, cluster in mapping.items():
+            if counts[cluster] < 2:
+                heuristic = _heuristic_for_path(path)
+                result[path] = heuristic if heuristic in large else max(large, key=lambda c: counts[c])
+            else:
+                result[path] = cluster
+        mapping = result
+        counts = Counter(mapping.values())
+
+    # Cap total number of clusters
     if len(counts) <= max_clusters:
         return mapping
     keep = {name for name, _ in counts.most_common(max_clusters - 1)}
