@@ -24,7 +24,7 @@ SYSTEM_PROMPT = (
     "Use these names where they fit (you may add others if truly needed): "
     "Frontend, CLI, Backend, API, Database, Models, Auth, Config, Utilities, Tests, External, Build. "
     "Important: use 'Frontend' for all UI/web/client-side code; use 'CLI' for command-line entry points. "
-    "Keep names ≤ 16 chars, Title Case, no emoji. Aim for 4–6 clusters max — aggressively merge related files. "
+    "Keep names SHORT — 1-2 words max, ≤ 12 chars, Title Case, no emoji. Aim for 4–6 clusters max — aggressively merge related files. "
     'Output ONLY a JSON object mapping each input file path to a cluster name. No prose, no markdown.'
 )
 
@@ -86,10 +86,18 @@ def _canonicalize(name: str) -> str:
     key = cleaned.lower()
     if key in _ALIASES:
         return _ALIASES[key]
-    # Title-case if not already
     if cleaned == cleaned.lower() or cleaned == cleaned.upper():
         cleaned = cleaned.title()
-    return cleaned[:16]
+    if len(cleaned) > 12:
+        words = cleaned.split()
+        result = words[0]
+        for w in words[1:]:
+            if len(result) + 1 + len(w) <= 12:
+                result += " " + w
+            else:
+                break
+        cleaned = result
+    return cleaned
 
 
 def _cap_clusters(mapping: dict[str, str], max_clusters: int = MAX_CLUSTERS) -> dict[str, str]:
