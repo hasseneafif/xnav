@@ -11,8 +11,11 @@ File: {file_path} | Type: {kind} | Name: {name}
 Uses: {dependency_names} | Used by: {dependent_names}
 Source: {source_snippet}
 
-Respond ONLY with JSON: {{"summary": "one sentence max", "role": "3-5 word phrase", "depends_on": [], "used_by": [], "risk_notes": null}}
-"summary" must be a single sentence. "role" must be 3-5 words. Be extremely concise.
+Write 1-2 sentences for "summary" explaining what this code does and why it exists.
+For "risk_notes", write a short observation about this code — notable patterns, design decisions, performance considerations, coupling, or potential issues. Always try to provide something useful here.
+"role" must be a 3-5 word phrase describing the responsibility.
+
+Respond ONLY with JSON: {{"summary": "...", "role": "...", "depends_on": [], "used_by": [], "risk_notes": null}}
 """
 
 
