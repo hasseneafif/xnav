@@ -180,13 +180,16 @@ async function pollForGraph() {
       const res = await fetch('/api/graph');
       if (res.status === 503) { document.getElementById('overlay-sub').textContent = `Analyzing… (${attempts}s)`; continue; }
       if (!res.ok) {
+        // Server may still be starting — keep retrying for the first 15s
+        if (attempts < 13) { document.getElementById('overlay-sub').textContent = `Starting… (${attempts}s)`; continue; }
         const body = await res.json().catch(() => ({ detail: res.statusText }));
         showError(body.detail || 'Unknown error'); return;
       }
       steps.forEach((s, i) => setStep(steps, i, 'done'));
       onGraphReady(await res.json()); return;
     } catch (e) {
-      document.getElementById('overlay-sub').textContent = `Retrying… (${e.message})`;
+      // Connection refused — server not up yet, keep waiting
+      document.getElementById('overlay-sub').textContent = `Starting… (${e.message})`;
     }
   }
 }
@@ -211,6 +214,36 @@ function onGraphReady(data) {
   renderStats(stats);
   buildClusterIndex(data);
   renderOverview();
+  initHints(repoPath);
+}
+
+// ═══ Guide hints (shown once per project via localStorage) ═══════════════════
+const _hintShown = new Set();
+let _hintsEnabled = false;
+
+function _hintKey(repoPath) { return 'xnav-hints-seen:' + repoPath; }
+
+function initHints(repoPath) {
+  if (localStorage.getItem(_hintKey(repoPath))) return;
+  _hintsEnabled = true;
+  localStorage.setItem(_hintKey(repoPath), '1');
+  setTimeout(() => showHint('hint-1'), 1200);
+}
+
+function showHint(id) {
+  if (!_hintsEnabled || _hintShown.has(id)) return;
+  _hintShown.add(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('visible');
+}
+
+function dismissHint(id) {
+  const el = document.getElementById(id);
+  if (!el || !el.classList.contains('visible')) return;
+  el.classList.add('fade-out');
+  el.classList.remove('visible');
+  setTimeout(() => el.classList.remove('fade-out'), 400);
 }
 
 function showError(msg) {
@@ -628,6 +661,8 @@ function enterExpanded(clusterName) {
   if (isTransitioning) return;
   const target = clusterIndex[clusterName];
   if (!target) return;
+  dismissHint('hint-1');
+  setTimeout(() => showHint('hint-2'), 800);
   stopLiveAnimation();
   isTransitioning = true; viewMode = VIEW.EXPANDED; expandedCluster = clusterName;
   if (topSim) topSim.stop();
@@ -668,6 +703,7 @@ function enterExpanded(clusterName) {
 }
 
 function exitExpanded(onDone) {
+  dismissHint('hint-4');
   if (isTransitioning && !onDone) return;
   if (viewMode !== VIEW.EXPANDED) { onDone && onDone(); return; }
   isTransitioning = true; selectedNodeId = null;
@@ -896,6 +932,8 @@ function clearNodeSelection() {
 
 // Visual selection + structural sidebar. Resets AI explain box to prompt.
 function selectNode(domEl, d) {
+  dismissHint('hint-2');
+  dismissHint('hint-4');
   selectedNodeId = d.id;
   d3.selectAll('#node-layer g.node').classed('blast', false).classed('selected', false);
   d3.select(domEl).classed('selected', true);
@@ -934,6 +972,7 @@ function selectNode(domEl, d) {
   document.getElementById('explain-role').textContent = '';
   document.getElementById('risk-section').style.display    = 'none';
   document.getElementById('similar-section').style.display = 'none';
+  setTimeout(() => showHint('hint-3'), 400);
 }
 
 // Camera pan + LLM. Structural sidebar content is already set by selectNode.
@@ -972,6 +1011,8 @@ async function activateNode(d) {
       explainBox.className = ''; explainBox.textContent = ex.summary;
       explainRole.textContent = ex.role;
       if (ex.risk_notes) { document.getElementById('risk-box').textContent = ex.risk_notes; document.getElementById('risk-section').style.display = ''; }
+      dismissHint('hint-3');
+      setTimeout(() => showHint('hint-4'), 500);
     } else {
       explainBox.className = ''; explainBox.textContent = 'LLM unavailable — start Ollama or configure XNAV_LLM_URL.';
     }

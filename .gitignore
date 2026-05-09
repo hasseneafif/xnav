@@ -13,3 +13,5 @@ tmp_repos/
 .serena/
 .env.local
 /specs
+/frontend-demo
+/presentation

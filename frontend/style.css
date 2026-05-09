@@ -496,3 +496,42 @@ html, body {
 
 /* ── Live animation ── */
 #particle-flow-layer path { pointer-events: none; }
+
+/* ── Guide hints ── */
+.hint {
+  position: fixed;
+  z-index: 8000;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--fg);
+  background: var(--bg2);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-top: 2px solid #00f0ff;
+  border-radius: 8px;
+  padding: 14px 20px;
+  max-width: 290px;
+  line-height: 1.6;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.12);
+}
+.hint::before { content: '// '; color: #00f0ff; }
+.hint.visible  { opacity: 1; }
+.hint.fade-out { opacity: 0; }
+
+#hint-1 { bottom: 130px; left: 50%; transform: translateX(-50%) translateY(8px); }
+#hint-1.visible   { transform: translateX(-50%) translateY(0); }
+#hint-1.fade-out  { transform: translateX(-50%) translateY(-6px); }
+
+#hint-2 { top: 50%; left: 50%; transform: translate(-50%, calc(-50% + 8px)); }
+#hint-2.visible   { transform: translate(-50%, -50%); }
+#hint-2.fade-out  { transform: translate(-50%, calc(-50% - 6px)); }
+
+#hint-3 { bottom: 130px; left: 50%; transform: translateX(-50%) translateY(8px); }
+#hint-3.visible   { transform: translateX(-50%) translateY(0); }
+#hint-3.fade-out  { transform: translateX(-50%) translateY(-6px); }
+
+#hint-4 { top: 50%; left: 50%; transform: translate(-50%, calc(-50% + 8px)); }
+#hint-4.visible   { transform: translate(-50%, -50%); }
+#hint-4.fade-out  { transform: translate(-50%, calc(-50% - 6px)); }

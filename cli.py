@@ -20,7 +20,7 @@ except ImportError:
     pass
 
 
-def _open_browser(port: int, delay: float = 1.5) -> None:
+def _open_browser(port: int, delay: float = 3.0) -> None:
     time.sleep(delay)
     webbrowser.open(f"http://localhost:{port}")
 
