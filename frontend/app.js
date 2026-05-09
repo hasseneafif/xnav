@@ -134,24 +134,24 @@ function onZoomLevel(k) {
 
 // ═══ Color palette ════════════════════════════════════════════════════════════
 const CLUSTER_PALETTE = [
-  '#c084fc',  // soft purple
-  '#f472b6',  // baby pink
-  '#fb7185',  // light coral
-  '#38bdf8',  // sky blue
-  '#4ade80',  // neon green
-  '#a78bfa',  // violet
-  '#e879f9',  // fuchsia
-  '#22d3ee',  // neon cyan
-  '#fb923c',  // neon orange
+  '#a855f7',  // purple
+  '#86efac',  // light green
+  '#60a5fa',  // blue
+  '#fb923c',  // orange
+  '#fde047',  // yellow
+  '#f9a8d4',  // baby pink
+  '#2dd4bf',  // teal
+  '#f87171',  // red
   '#fbbf24',  // amber
+  '#c084fc',  // lavender
+  '#38bdf8',  // sky
+  '#4ade80',  // green
 ];
+let _paletteIdx = 0;
 const _colorMemo = {};
 function clusterColor(name) {
   if (!name || name === 'External' || name === 'external') return '#6b7280';
-  if (_colorMemo[name]) return _colorMemo[name];
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
-  return (_colorMemo[name] = CLUSTER_PALETTE[h % CLUSTER_PALETTE.length]);
+  return clusterIndex[name]?.color || _colorMemo[name] || '#6b7280';
 }
 
 // ═══ Boot — poll for analysis ══════════════════════════════════════════════════
@@ -257,9 +257,13 @@ function buildClusterIndex(data) {
     }));
   }
 
+  _paletteIdx = 0;
   for (const c of clusters) {
     const nodes = data.nodes.filter(n => (n.cluster || n.group) === c.name);
-    clusterIndex[c.name] = { ...c, color: clusterColor(c.name), nodes, baseR: clusterRadius(c) };
+    const color = (c.name === 'External' || c.name === 'external')
+      ? '#6b7280'
+      : CLUSTER_PALETTE[_paletteIdx++ % CLUSTER_PALETTE.length];
+    clusterIndex[c.name] = { ...c, color, nodes, baseR: clusterRadius(c) };
   }
 
   crossEdges = (data.cluster_edges || []).filter(e => e.source !== e.target);
@@ -315,7 +319,7 @@ function generateBleedDots(targetCluster, sourceClusterName, count) {
     const spread = (Math.random() - 0.5) * (Math.PI / 2.5);
     const a      = theta + spread;
     const rOff   = R + (Math.random() * 5 - 2);
-    const rot    = a * 180 / Math.PI + 90;
+    const rot    = a * 180 / Math.PI + 90 + 180;
     const size   = 2.5 + Math.random() * 2.5;
     const alpha  = 0.5 + Math.random() * 0.4;
     dots.push({ dx: Math.cos(a)*rOff, dy: Math.sin(a)*rOff, size, alpha, rot, fill: color });
@@ -414,12 +418,17 @@ function renderOverview() {
       inner.append('circle').attr('class', 'halo')
         .attr('r', d => d.baseR).attr('fill', d => d.color).attr('opacity', 0.07).attr('filter', 'url(#glow-strong)');
       inner.append('g').attr('class', 'blob-dots').each(function(d) {
-        const dots = generateBlobDots(d.baseR, d.unit_count || d.nodes.length || 1);
-        d.blobDotData = dots;
-        d3.select(this).selectAll('path').data(dots).join('path')
-          .attr('d', dot => navArrow(dot.size))
-          .attr('transform', dot => `translate(${dot.dx},${dot.dy}) rotate(${dot.rot})`)
-          .attr('fill', d.color).attr('opacity', dot => dot.alpha);
+        const rawDots = generateBlobDots(d.baseR, d.unit_count || d.nodes.length || 1);
+        d.blobDotData = rawDots.map(dot => {
+          const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          el.setAttribute('d', navArrow(dot.size));
+          el.setAttribute('fill', d.color);
+          el.setAttribute('opacity', dot.alpha);
+          el.setAttribute('transform', `translate(${dot.dx},${dot.dy}) rotate(${dot.rot})`);
+          this.appendChild(el);
+          return { el, cx: dot.dx, cy: dot.dy, rot: dot.rot,
+                   vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3 };
+        });
       });
       inner.append('g').attr('class', 'bleed-layer');
       inner.append('text').attr('class', 'cluster-label')
@@ -475,8 +484,8 @@ function renderOverview() {
       linkSel.attr('d', d => clusterArc(d));
     });
 
-  topSim.on('end.bleed', () => updateBleedDots());
-  setTimeout(updateBleedDots, 500);
+  topSim.on('end.bleed', () => startLiveAnimation());
+  setTimeout(startLiveAnimation, 600);
   setTimeout(() => applySearch(), 120);
 }
 
@@ -489,20 +498,79 @@ function clusterArc(d) {
   return `M${a.x},${a.y}A${dr},${dr} 0 0,1 ${b.x},${b.y}`;
 }
 
-function updateBleedDots() {
-  Object.values(clusterIndex).forEach(target => {
-    if (target.x == null) return;
-    target.bleedDots = crossEdges.filter(e => e.target === target.name)
-      .flatMap(e => generateBleedDots(target.name, e.source, e.count));
+// ═══ Live animation ═══════════════════════════════════════════════════════════
+let _liveRafId = null, _particleLayer = null;
+const _particles = [];
+
+function _bezierAt(t, p0x, p0y, p1x, p1y, p2x, p2y) {
+  const u = 1 - t;
+  return { x: u*u*p0x + 2*u*t*p1x + t*t*p2x, y: u*u*p0y + 2*u*t*p1y + t*t*p2y };
+}
+
+function startLiveAnimation() {
+  stopLiveAnimation();
+  _particleLayer = zoomLayer.insert('g', '#cluster-layer').attr('id', 'particle-flow-layer');
+
+  // Particles flow from dependency cluster → importer cluster, colored like the dependency
+  crossEdges.forEach(e => {
+    const color = clusterIndex[e.target]?.color || '#fff';
+    for (let i = 0; i < 2; i++) {
+      const el = _particleLayer.append('path').attr('d', navArrow(3.5)).attr('fill', color).attr('opacity', 0).node();
+      _particles.push({ el, edge: e, t: i / 2, speed: 0.0012 + Math.random() * 0.0008 });
+    }
   });
-  clusterLayer.selectAll('g.cluster-blob').each(function(d) {
-    const sel = d3.select(this).select('.bleed-layer').selectAll('path').data(d.bleedDots || []);
-    sel.exit().remove();
-    sel.enter().append('path').merge(sel)
-      .attr('d', dot => navArrow(dot.size))
-      .attr('transform', dot => `translate(${dot.dx},${dot.dy}) rotate(${dot.rot})`)
-      .attr('fill', dot => dot.fill).attr('opacity', dot => dot.alpha);
-  });
+
+  let last = 0;
+  function tick(now) {
+    if (viewMode !== VIEW.OVERVIEW) { stopLiveAnimation(); return; }
+    const dt = Math.min(now - last, 50) / 16.67; last = now;
+
+    // Blob dots: random drift inside each cluster with tip pointing toward movement
+    Object.values(clusterIndex).forEach(cluster => {
+      if (!cluster.blobDotData) return;
+      const R = cluster.baseR * 0.85;
+      cluster.blobDotData.slice(0, 15).forEach(s => {
+        s.vx += (Math.random() - 0.5) * 0.025;
+        s.vy += (Math.random() - 0.5) * 0.025;
+        const spd = Math.hypot(s.vx, s.vy);
+        if (spd > 0.18) { s.vx = s.vx / spd * 0.18; s.vy = s.vy / spd * 0.18; }
+        const dist = Math.hypot(s.cx, s.cy);
+        if (dist > R) { s.vx -= (s.cx / dist) * 0.05; s.vy -= (s.cy / dist) * 0.05; }
+        s.cx += s.vx * dt;
+        s.cy += s.vy * dt;
+        if (spd > 0.05) {
+          const target = Math.atan2(s.vy, s.vx) * 180 / Math.PI + 90;
+          s.rot += (target - s.rot) * 0.1;
+        }
+        s.el.setAttribute('transform', `translate(${s.cx},${s.cy}) rotate(${s.rot})`);
+      });
+    });
+
+    // Dependency particles: dep cluster → importer cluster
+    _particles.forEach(p => {
+      p.t += p.speed * dt;
+      if (p.t > 1) p.t -= 1;
+      const a = clusterIndex[p.edge.target], b = clusterIndex[p.edge.source];
+      if (!a || !b || a.x == null) { p.el.setAttribute('opacity', '0'); return; }
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const bz = { p0x: a.x, p0y: a.y, p1x: (a.x+b.x)/2 - dy*0.3, p1y: (a.y+b.y)/2 + dx*0.3, p2x: b.x, p2y: b.y };
+      const pt  = _bezierAt(p.t, bz.p0x, bz.p0y, bz.p1x, bz.p1y, bz.p2x, bz.p2y);
+      const pt2 = _bezierAt(Math.min(p.t + 0.02, 1), bz.p0x, bz.p0y, bz.p1x, bz.p1y, bz.p2x, bz.p2y);
+      const angle = Math.atan2(pt2.y - pt.y, pt2.x - pt.x) * 180 / Math.PI;
+      const fade  = p.t < 0.08 ? p.t / 0.08 : p.t > 0.92 ? (1 - p.t) / 0.08 : 1;
+      p.el.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${angle + 90})`);
+      p.el.setAttribute('opacity', String(fade * 0.9));
+    });
+
+    _liveRafId = requestAnimationFrame(tick);
+  }
+  _liveRafId = requestAnimationFrame(tick);
+}
+
+function stopLiveAnimation() {
+  if (_liveRafId) { cancelAnimationFrame(_liveRafId); _liveRafId = null; }
+  _particles.length = 0;
+  if (_particleLayer) { _particleLayer.remove(); _particleLayer = null; }
 }
 
 // ═══ Cluster interaction ══════════════════════════════════════════════════════
@@ -560,6 +628,7 @@ function enterExpanded(clusterName) {
   if (isTransitioning) return;
   const target = clusterIndex[clusterName];
   if (!target) return;
+  stopLiveAnimation();
   isTransitioning = true; viewMode = VIEW.EXPANDED; expandedCluster = clusterName;
   if (topSim) topSim.stop();
 
@@ -626,6 +695,7 @@ function exitExpanded(onDone) {
     if (topSim) topSim.alpha(0.3).restart();
     isTransitioning = false;
     applySearch();
+    startLiveAnimation();
     onDone && onDone();
   }, EXPAND_PHASE_A + 50);
 }

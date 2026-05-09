@@ -491,3 +491,8 @@ html, body {
 .cluster-blob .cluster-label { font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
 .cluster-blob .cluster-count { fill: var(--dim2); font-family: var(--mono); letter-spacing: 0; font-size: 9.5px; }
 .cluster-link { fill: none; pointer-events: none; }
+
+
+
+/* ── Live animation ── */
+#particle-flow-layer path { pointer-events: none; }
