@@ -1,5 +1,7 @@
 # XNAV — AI Spatial Code Navigator
 
+![XNAV](https://i.imgur.com/JbL4AVX.png)
+
 ---
 
 ## The Problem
