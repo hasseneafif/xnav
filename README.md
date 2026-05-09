@@ -1,9 +1,5 @@
 # XNAV — AI Spatial Code Navigator
 
-> From zero context to full mental map in 5 minutes.
-
-**Demo:** [Watch the walkthrough →](https://www.loom.com/share/9bd673f1e7c5407eaa9115371e99cfb2)
-
 ---
 
 ## The Problem
