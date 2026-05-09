@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 CACHE_DIR_NAME = ".xnav"
 CACHE_FILE_NAME = "clusters.json"
 CACHE_VERSION = 1
-MAX_CLUSTERS = 12
+MAX_CLUSTERS = 8
 
 SYSTEM_PROMPT = (
-    "You are a senior software architect classifying source files into 5–10 high-level "
+    "You are a senior software architect classifying source files into 4–6 high-level "
     "semantic clusters so a developer can understand the project at a glance. "
     "Use these names where they fit (you may add others if truly needed): "
     "Frontend, CLI, Backend, API, Database, Models, Auth, Config, Utilities, Tests, External, Build. "
     "Important: use 'Frontend' for all UI/web/client-side code; use 'CLI' for command-line entry points. "
-    "Keep names ≤ 16 chars, Title Case, no emoji. Group aggressively — fewer clusters is better. "
+    "Keep names ≤ 16 chars, Title Case, no emoji. Aim for 4–6 clusters max — aggressively merge related files. "
     'Output ONLY a JSON object mapping each input file path to a cluster name. No prose, no markdown.'
 )
 
