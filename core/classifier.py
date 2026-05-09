@@ -101,15 +101,16 @@ def _canonicalize(name: str) -> str:
 
 
 def _cap_clusters(mapping: dict[str, str], max_clusters: int = MAX_CLUSTERS) -> dict[str, str]:
-    """Merge singleton clusters into larger ones, then cap total cluster count."""
-    counts = Counter(mapping.values())
+    """Merge config/build singletons into larger clusters, then cap total count."""
+    _MERGEABLE = {"Config", "Build", "Utilities", "External", "Root"}
 
-    # Merge clusters with only one file into a better-fitting larger cluster
+    counts = Counter(mapping.values())
     large = {name for name, cnt in counts.items() if cnt >= 2}
+
     if large:
         result: dict[str, str] = {}
         for path, cluster in mapping.items():
-            if counts[cluster] < 2:
+            if counts[cluster] < 2 and cluster in _MERGEABLE:
                 heuristic = _heuristic_for_path(path)
                 result[path] = heuristic if heuristic in large else max(large, key=lambda c: counts[c])
             else:
@@ -117,7 +118,6 @@ def _cap_clusters(mapping: dict[str, str], max_clusters: int = MAX_CLUSTERS) -> 
         mapping = result
         counts = Counter(mapping.values())
 
-    # Cap total number of clusters
     if len(counts) <= max_clusters:
         return mapping
     keep = {name for name, _ in counts.most_common(max_clusters - 1)}
