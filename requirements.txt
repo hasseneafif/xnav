@@ -1,0 +1,19 @@
+# Core
+pydantic>=2.0
+networkx>=3.0
+httpx>=0.25
+
+# API
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# Parsing (multi-language support — optional for now)
+# tree-sitter>=0.21
+# tree-sitter-python>=0.21
+
+# GPU / Embeddings
+# torch is pre-installed in the ROCm base image (rocm/pytorch); locally installs CPU version
+sentence-transformers>=2.5
+
+# Dev
+python-dotenv>=1.0

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XNAV — Codebase Navigator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0a0f'/><text x='16' y='22' font-family='monospace' font-size='18' font-weight='700' fill='%2300f0ff' text-anchor='middle'>X</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div id="project-info">
+      <div id="project-name">—</div>
+      <div id="project-path">—</div>
+    </div>
+    <div id="search-wrap">
+      <input id="search-input" type="text" placeholder="/ search nodes…" autocomplete="off" spellcheck="false" disabled>
+      <span id="search-badge">⌕</span>
+    </div>
+    <div id="topbar-status">ANALYZING…</div>
+  </div>
+
+  <div id="main">
+    <div id="graph-wrap">
+      <svg id="graph-svg"></svg>
+      <button id="back-btn">← Clusters</button>
+      <button id="open-sidebar-btn" title="Open panel">PANEL ›</button>
+
+      <!-- Controls -->
+      <div id="controls">
+        <button class="ctrl-btn" id="zoom-in-btn"  title="Zoom in">+</button>
+        <button class="ctrl-btn" id="zoom-out-btn" title="Zoom out">−</button>
+        <button class="ctrl-btn" id="zoom-fit-btn" title="Fit to screen" style="font-size:13px">⊡</button>
+        <div class="ctrl-sep"></div>
+        <button class="ctrl-btn" id="legend-btn" title="Legend" style="font-size:13px">?</button>
+      </div>
+
+      <!-- Legend panel -->
+      <div id="legend" class="hidden">
+        <div class="legend-title">LEGEND</div>
+        <div class="legend-section">
+          <div class="legend-label">Node Shapes</div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="24" height="18" viewBox="-12 -9 24 18">
+              <path d="M-8,-8 L5,-8 L9,-4 L9,8 L-8,8 Z" fill="none" stroke="#808098" stroke-width="1.5"/>
+            </svg>File / Module
+          </div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="24" height="18" viewBox="-12 -9 24 18">
+              <polygon points="0,-8 6.9,-4 6.9,4 0,8 -6.9,4 -6.9,-4" fill="none" stroke="#808098" stroke-width="1.5"/>
+            </svg>Class
+          </div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="24" height="18" viewBox="-12 -9 24 18">
+              <rect x="-10" y="-5" width="20" height="10" rx="5" fill="none" stroke="#808098" stroke-width="1.5"/>
+            </svg>Function / Method
+          </div>
+        </div>
+        <div class="legend-section">
+          <div class="legend-label">Edge Types</div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="28" height="8" viewBox="0 0 28 8">
+              <line x1="0" y1="4" x2="28" y2="4" stroke="#444460" stroke-width="1.5"/>
+            </svg>imports
+          </div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="28" height="8" viewBox="0 0 28 8">
+              <line x1="0" y1="4" x2="28" y2="4" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="4 2"/>
+            </svg>calls
+          </div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="28" height="8" viewBox="0 0 28 8">
+              <line x1="0" y1="4" x2="28" y2="4" stroke="#8866ff" stroke-width="2.5"/>
+            </svg>inherits
+          </div>
+        </div>
+        <div class="legend-section">
+          <div class="legend-label">Indicators</div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="16" height="16" viewBox="-8 -8 16 16">
+              <circle r="6" fill="none" stroke="#ff6622" stroke-width="2"/>
+            </svg>Blast radius
+          </div>
+          <div class="legend-row">
+            <svg class="legend-swatch" width="16" height="16" viewBox="-8 -8 16 16">
+              <circle r="6" fill="none" stroke="#ffaa00" stroke-width="2"/>
+            </svg>Search match
+          </div>
+        </div>
+        <div class="legend-footer">ESC — back / close<br>/ — focus search<br>Click deps to navigate</div>
+      </div>
+
+      <!-- Loading overlay -->
+      <div id="overlay">
+        <div class="overlay-card">
+          <div class="spinner"></div>
+          <div id="overlay-title">ANALYZING</div>
+          <div id="overlay-steps">
+            <div class="step" id="step-0"><span class="step-icon">○</span>Parsing source files</div>
+            <div class="step" id="step-1"><span class="step-icon">○</span>Building dependency graph</div>
+            <div class="step" id="step-2"><span class="step-icon">○</span>Generating embeddings</div>
+            <div class="step" id="step-3"><span class="step-icon">○</span>Classifying clusters</div>
+            <div class="step" id="step-4"><span class="step-icon">○</span>Generating explanations</div>
+          </div>
+          <div id="overlay-sub"></div>
+        </div>
+      </div>
+
+      <div id="error-box" class="hidden">
+        <div id="error-title">// ANALYSIS FAILED</div>
+        <div id="error-msg"></div>
+      </div>
+    </div>
+
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <div id="sidebar-name">—</div>
+        <div id="sidebar-meta">—</div>
+        <button id="sidebar-close" title="Close">✕</button>
+      </div>
+      <div id="sidebar-body" class="node-mode">
+
+        <!-- Node mode -->
+        <div class="section node-only">
+          <div class="section-title">AI Explanation</div>
+          <div id="explain-box" class="loading">Click a node for an AI explanation.</div>
+          <div id="explain-role"></div>
+        </div>
+
+        <div class="section node-only" id="source-section" style="display:none">
+          <div class="section-title">Source</div>
+          <pre id="source-preview"></pre>
+        </div>
+
+        <div class="section node-only">
+          <div class="section-title">Dependencies</div>
+          <ul class="dep-list" id="deps-list"></ul>
+        </div>
+        <div class="section node-only">
+          <div class="section-title">Used By</div>
+          <ul class="dep-list" id="used-by-list"></ul>
+        </div>
+        <div class="section node-only" id="similar-section" style="display:none">
+          <div class="section-title">Similar Code</div>
+          <div id="similar-list"></div>
+        </div>
+        <div class="section node-only" id="risk-section" style="display:none">
+          <div class="section-title">⚠ Risk Notes</div>
+          <div id="risk-box"></div>
+        </div>
+
+        <!-- Cluster mode -->
+        <div class="section cluster-only">
+          <div class="section-title">Top Files</div>
+          <ul class="dep-list" id="top-files-list"></ul>
+        </div>
+        <div class="section cluster-only">
+          <div class="section-title">Imports From</div>
+          <div id="imports-from-list"></div>
+        </div>
+        <div class="section cluster-only">
+          <div class="section-title">Imports To</div>
+          <div id="imports-to-list"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="statsbar"><span style="color:var(--dim)">Waiting for analysis…</span></div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-sub"  id="tt-kind"></div>
+  <div class="tt-sub"  id="tt-path"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="app.js"></script>
+</body>
+</html>

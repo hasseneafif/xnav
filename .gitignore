@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+tmp_repos/
+.xnav/
+.claude/
+.serena/
+.env.local
+/specs
