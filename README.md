@@ -20,6 +20,8 @@ XNAV is an AI-powered spatial code navigator. You point it at any codebase, and 
 
 It clusters files into meaningful groups (Backend, Auth, API, Frontend, Config…), draws the dependency flow between them, and lets you drill into any cluster to see individual files, functions, and classes — all explained in plain English by an AI.
 
+https://xnav-demo.vercel.app/
+
 ---
 
 ## What It Solves
